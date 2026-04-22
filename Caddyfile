@@ -1,0 +1,37 @@
+{
+	# Koyeb provides $PORT; we use it to bind. Disable admin API — not needed,
+	# and it shouldn't be exposed.
+	admin off
+	auto_https off
+}
+
+:{$PORT:8000} {
+	# Thin reverse proxy to the HammerGate origin. Critical: this container
+	# is meant for clients whose ISP blocks *.workers.dev / *.trycloudflare.com
+	# / *.vercel.app-for-large-files. Koyeb's *.koyeb.app is a legit hosting
+	# domain and is not typically on those block lists.
+	#
+	# We preserve the real client IP under X-Original-Client-IP so the origin's
+	# scanner protection / devices.json / rate-limit logic tags the real user
+	# instead of the Koyeb edge IP. Backend reads this header first (see
+	# _get_real_ip in server.py). nginx on the origin will overwrite X-Real-IP
+	# with its own $remote_addr, so a plain X-Real-IP pass-through would be
+	# useless — hence the custom header name.
+	reverse_proxy https://ironhammercore.nexuscloud.ru {
+		header_up Host ironhammercore.nexuscloud.ru
+		header_up X-Original-Client-IP {remote_host}
+
+		# Some hosting origins reject requests without a recognizable UA; not
+		# strictly needed here, but safer to let the client's UA through.
+
+		# No body/response size caps — streaming 5 MB installers and 20 MB
+		# .jar mods must not buffer in memory.
+		flush_interval -1
+	}
+
+	# Log errors only, not every request, to keep Koyeb free-tier logs quiet.
+	log {
+		output stderr
+		level ERROR
+	}
+}
