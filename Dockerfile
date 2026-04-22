@@ -1,8 +1,10 @@
-# Caddy v2 alpine image — tiny (~50 MB), built-in reverse_proxy, HTTP/2.
-FROM caddy:2-alpine
+# nginx alpine is a known-good base on Render Free tier (caddy's /usr/bin
+# binary hits 'operation not permitted' under Render's exec sandbox on some
+# deploys — nginx doesn't).
+FROM nginx:alpine
 
-COPY Caddyfile /etc/caddy/Caddyfile
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Koyeb sets $PORT; Caddy reads it from the Caddyfile via {$PORT}.
-# Default exposed port is 8000 (matches Caddyfile default).
 EXPOSE 8000
+
+CMD ["nginx", "-g", "daemon off;"]
